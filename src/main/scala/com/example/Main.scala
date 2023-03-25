@@ -28,9 +28,6 @@ object Main extends  ZIOAppDefault {
 
   override val bootstrap = zio.Runtime.removeDefaultLoggers ++ SLF4J.slf4j ++ zio.Runtime.enableWorkStealing
 
-  //val CHAT_GPT_TOKEN = "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"
-
-
   val CHAT_GPT_TOKEN = "IMPROPER_TOKEN"
   val TIMEOUT_MS = 60000
 
