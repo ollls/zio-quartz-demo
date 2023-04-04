@@ -15,7 +15,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core._
 import zio.stream.ZStream
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
-
+import io.quartz.services.H2Client
 
 //To re-generate slef-signed cert use.
 //keytool -genkey -keyalg RSA -alias selfsigned -keystore keystore.jks -storepass password -validity 360 -keysize 2048
@@ -24,11 +24,13 @@ import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
 //case class Device(id: Int, model: String)
 //case class User(name: String, devices: Seq[Device])
 
-object Main extends  ZIOAppDefault {
+object Main extends ZIOAppDefault {
 
-  override val bootstrap = zio.Runtime.removeDefaultLoggers ++ SLF4J.slf4j ++ zio.Runtime.enableWorkStealing
+  override val bootstrap =
+    zio.Runtime.removeDefaultLoggers ++ SLF4J.slf4j ++ zio.Runtime.enableWorkStealing
 
-  val CHAT_GPT_TOKEN = "IMPROPER_TOKEN"
+  val CHAT_GPT_TOKEN = "PROVIDE_TOKEN_HERE"
+
   val TIMEOUT_MS = 60000
 
   val connectionTbl =
@@ -41,55 +43,48 @@ object Main extends  ZIOAppDefault {
 
   given JsonValueCodec[ChatGPTAPIRequest] = JsonCodecMaker.make
 
-  val R: HttpRouteIO[Any] =
+  val R: HttpRouteIO[H2Client] =
     ///////////////////////////////////////
     case req @ POST -> Root / "token" =>
       for {
-        text    <- req.body.map( String(_))
-        connOpt <- ZIO.attempt(connectionTbl.get(req.connId))
-        _ <- ZIO.when(connOpt.isDefined == false)( 
-          ZIO.fail(new Exception("Cannot connect to openai")))
-         
+        text <- req.body.map(String(_))
+        svc  <- ZIO.service[H2Client]
+
+        conn <- svc.getConnection(req.connId)
 
         request <- ZIO.attempt(
           ChatGPTAPIRequest(
             "gpt-3.5-turbo",
             0.7,
-            messages =
-              Array(ChatGPTMessage("user", s"translate from English to Ukranian: '$text'"))
+            messages = Array(ChatGPTMessage("user", s"translate from English to Ukranian: '$text'"))
           )
         )
 
-        response <- connOpt.get.doPost(
+        response <- conn.doPost(
           "/v1/chat/completions",
           ZStream.fromIterable(writeToArray(request)),
           Headers().contentType(
             ContentType.JSON
-          ) + ( "Authorization" -> s"Bearer $CHAT_GPT_TOKEN")
+          ) + ("Authorization" -> s"Bearer $CHAT_GPT_TOKEN")
         )
         output <- response.bodyAsText
 
       } yield (Response.Ok().contentType(ContentType.JSON).asText(output))
 
-
   def onDisconnect(id: Long) = (for {
-    _ <- ZIO.attempt(connectionTbl.get(id).map(c => c.close()))
-    _ <- ZIO.attempt(connectionTbl.remove(id))
-    _ <- ZIO.logInfo(
-      s"HttpRouteIO: https://api.openai.com closed for connection Id = $id"
-    )
-  } yield ()).catchAll( _ => ZIO.unit)
+    svc <- ZIO.service[H2Client]
+    _   <- svc.close(id)
+  } yield ())
 
   def onConnect(id: Long) = for {
-    c <- QuartzH2Client.open("https://api.openai.com", TIMEOUT_MS, ctx = ctx,incomingWindowSize = 184590)
-    _ <- ZIO.attempt(connectionTbl.put(id, c))
-    _ <- ZIO.logInfo(s"HttpRouteIO: https://api.openai.com open for connection Id = $id")
+    svc <- ZIO.service[H2Client]
+    _ <- svc.open(id, "https://api.openai.com", TIMEOUT_MS, ctx = ctx, incomingWindowSize = 184590)
   } yield ()
 
   def run: Task[ExitCode] =
     for {
       ctx <- QuartzH2Server.buildSSLContext("TLS", "keystore.jks", "password")
-      exitCode <- new QuartzH2Server(
+      exitCode <- new QuartzH2Server[H2Client](
         "localhost",
         8443,
         TIMEOUT_MS,
@@ -98,6 +93,7 @@ object Main extends  ZIOAppDefault {
         onDisconnect = onDisconnect
       )
         .startIO(R, sync = false)
+        .provide(H2Client.layer)
 
     } yield (exitCode)
 }
