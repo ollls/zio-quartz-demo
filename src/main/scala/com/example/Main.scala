@@ -29,12 +29,9 @@ object Main extends ZIOAppDefault {
   override val bootstrap =
     zio.Runtime.removeDefaultLoggers ++ SLF4J.slf4j ++ zio.Runtime.enableWorkStealing
 
-  val CHAT_GPT_TOKEN = "PROVIDE_TOKEN_HERE"
+  val CHAT_GPT_TOKEN = "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"
 
   val TIMEOUT_MS = 60000
-
-  val connectionTbl =
-    ConcurrentHashMap[Long, Http2ClientConnection](100).asScala
 
   val ctx = QuartzH2Client.buildSSLContext("TLSv1.3", null, null, true)
 
