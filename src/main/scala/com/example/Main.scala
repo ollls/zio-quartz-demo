@@ -41,7 +41,7 @@ object Main extends ZIOAppDefault {
   given JsonValueCodec[ChatGPTAPIRequest] = JsonCodecMaker.make
 
   val R: HttpRouteIO[H2Client] =
-    ///for perf tests: h2load and wrk
+    ///////////////////////////////////////
     case req @ GET -> Root / "test" => ZIO.attempt(Response.Ok())
     ///////////////////////////////////////
     case req @ POST -> Root / "token" =>
