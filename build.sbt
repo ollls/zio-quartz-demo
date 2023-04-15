@@ -16,6 +16,7 @@ lazy val root = (project in file(".")).settings(
     "io.github.ollls" %% "zio-quartz-h2" % "0.5.4",
     "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core" % "2.19.1",
     "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.19.1" % "compile-internal",
+    "dev.zio" %% "zio-direct" % "1.0.0-RC7"
   )
 )
 
