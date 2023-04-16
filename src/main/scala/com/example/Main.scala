@@ -16,6 +16,7 @@ import zio.stream.ZStream
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
 import io.quartz.services.H2Client
+import ch.qos.logback.classic.Level
 
 //To re-generate slef-signed cert use.
 //keytool -genkey -keyalg RSA -alias selfsigned -keystore keystore.jks -storepass password -validity 360 -keysize 2048
@@ -80,8 +81,19 @@ object Main extends ZIOAppDefault {
     _ <- svc.open(id, "https://api.openai.com", TIMEOUT_MS, ctx = ctx, incomingWindowSize = 184590)
   } yield ()
 
-  def run: Task[ExitCode] =
+  def run =
     for {
+      args <- this.getArgs
+      _ <- ZIO.when(args.find(_ == "--debug").isDefined)(
+        ZIO.attempt(QuartzH2Server.setLoggingLevel(Level.DEBUG))
+      )
+      _ <- ZIO.when(args.find(_ == "--error").isDefined)(
+        ZIO.attempt(QuartzH2Server.setLoggingLevel(Level.ERROR))
+      )
+      _ <- ZIO.when(args.find(_ == "--off").isDefined)(
+        ZIO.attempt(QuartzH2Server.setLoggingLevel(Level.OFF))
+      )
+
       ctx <- QuartzH2Server.buildSSLContext("TLS", "keystore.jks", "password")
       exitCode <- new QuartzH2Server[H2Client](
         "localhost",
