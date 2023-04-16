@@ -1,6 +1,7 @@
 package com.example
 
 import zio.{ZIO, UIO, Task, Queue, Chunk, Promise, Ref, ExitCode, ZIOAppDefault}
+import zio.stream.{ZSink, ZStream}
 import io.quartz.QuartzH2Server
 import io.quartz.QuartzH2Client
 import io.quartz.http2.routes.{HttpRouteIO, Routes}
@@ -16,6 +17,7 @@ import zio.stream.ZStream
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
 import io.quartz.services.H2Client
+import ch.qos.logback.classic.Level
 import zio.direct._
 
 case class ChatGPTMessage(role: String, content: String)
@@ -45,6 +47,15 @@ object Main extends ZIOAppDefault {
         Response.Ok()
       }
 
+    case req @ POST -> Root / "upload" / StringVar(file) =>
+      defer {
+        val FOLDER_PATH = "/Users/ostrygun/web_root/"
+        val FILE        = s"$file"
+        val path        = new java.io.File(FOLDER_PATH + FILE)
+        val u           = req.stream.run(ZSink.fromFile(path)).run
+        Response.Ok().asText(s"OK $u")
+      }
+
     ///////////////////////////////////////
     case req @ POST -> Root / "token" =>
       defer {
@@ -63,7 +74,7 @@ object Main extends ZIOAppDefault {
                 Array(ChatGPTMessage("user", s"translate from English to Ukranian: '$input'"))
             )
           )
-          .run //we did run call to address the above error
+          .run // we did run call to address the above error
 
         val response = connection
           .doPost(
@@ -88,8 +99,22 @@ object Main extends ZIOAppDefault {
     svc.open(id, "https://api.openai.com", TIMEOUT_MS, ctx = ctx, incomingWindowSize = 184590).run
   }
 
-  def run: Task[ExitCode] =
-    for {
+  def run =
+    val env = zio.ZLayer.fromZIO(ZIO.succeed("Hello ZIO World!"))
+    (for {
+
+      args <- this.getArgs
+
+      _ <- ZIO.when(args.find(_ == "--debug").isDefined)(
+        ZIO.attempt(QuartzH2Server.setLoggingLevel(Level.DEBUG))
+      )
+      _ <- ZIO.when(args.find(_ == "--error").isDefined)(
+        ZIO.attempt(QuartzH2Server.setLoggingLevel(Level.ERROR))
+      )
+      _ <- ZIO.when(args.find(_ == "--off").isDefined)(
+        ZIO.attempt(QuartzH2Server.setLoggingLevel(Level.OFF))
+      )
+
       ctx <- QuartzH2Server.buildSSLContext("TLS", "keystore.jks", "password")
       exitCode <- new QuartzH2Server[H2Client](
         "localhost",
@@ -102,5 +127,5 @@ object Main extends ZIOAppDefault {
         .startIO(R, sync = false)
         .provide(H2Client.layer)
 
-    } yield (exitCode)
+    } yield (exitCode)).provideSomeLayer(env)
 }
