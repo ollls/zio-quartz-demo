@@ -24,7 +24,13 @@ Make sure you have proper path for
 ```scala
   val FOLDER_PATH = "...."
   val BIG_FILE = "img_0278.jpeg"
-```  
+```
+
+```
+sbt "run --debug"
+sbt "run --error"
+sbt "run --off"
+```
 
 
 
