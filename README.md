@@ -1,7 +1,7 @@
 # Simple example with http/2 zio-quartz-h2 server/client with jsoniter-scala json codec accessing Chat GPT API.
 
 This is a template project for zio-quartz-h2
-- onConnect/OnDisconnect responsible for client connections wih H2Client ZIO service.
+- onConnect/OnDisconnect responsible for client connections wih H2Client ZIO service, unless you want open and close connection per request.
 - You can have ZIO-tests for your project. Just add/replace test in /test folder.
 - Please, use provided JSON codec or repace with your own.
 
