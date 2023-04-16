@@ -25,7 +25,7 @@ Make sure you have proper path for
   val FOLDER_PATH = "...."
   val BIG_FILE = "img_0278.jpeg"
 ```
-
+Options for logging level.
 ```
 sbt "run --debug"
 sbt "run --error"
