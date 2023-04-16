@@ -2,7 +2,7 @@
 
 This is a template project for zio-quartz-h2
 - onConnect/OnDisconnect responsible for client connections wih H2Client ZIO service.
-- You can have tests for your project. Just add/replace test in /test folder.
+- You can have ZIO-tests for your project. Just add/replace test in /test folder.
 - Please, use provided JSON codec or repace with your own.
 
 quartz-h2 http2 server.<br>
