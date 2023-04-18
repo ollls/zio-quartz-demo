@@ -21,7 +21,7 @@ import ch.qos.logback.classic.Level
 import zio.direct._
 
 case class ChatGPTMessage(role: String, content: String)
-case class ChatGPTAPIRequest(model: String, temperature: Float, messages: Array[ChatGPTMessage])
+case class ChatGPTAPIRequest(model: String, temperature: Float, messages: List[ChatGPTMessage])
 
 given JsonValueCodec[ChatGPTAPIRequest] = JsonCodecMaker.make
 
@@ -62,20 +62,12 @@ object Main extends ZIOAppDefault {
         val input      = req.body.map(String(_)).run
         val svc        = ZIO.service[H2Client].run
         val connection = svc.getConnection(req.connId).run
-        // Detected the use of a mutable collection inside a defer clause (called: Array).
-        // Mutable collections can cause many potential issues as a result of defer-clause
-        // rewrites so they are not allowed (Unless it is inside of a run-call).
-        val request = ZIO
-          .succeed(
-            ChatGPTAPIRequest(
-              "gpt-3.5-turbo",
-              0.7,
-              messages =
-                Array(ChatGPTMessage("user", s"translate from English to Ukranian: '$input'"))
-            )
+        val request =
+          ChatGPTAPIRequest(
+            "gpt-3.5-turbo",
+            0.7,
+            messages = List(ChatGPTMessage("user", s"translate from English to Ukranian: '$input'"))
           )
-          .run // we did run call to address the above error
-
         val response = connection
           .doPost(
             "/v1/chat/completions",
